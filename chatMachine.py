@@ -10,9 +10,10 @@ from numpy.random import randint
 from urlRequest import GooglePlace
 from PrivateData import token_dic
 
+from angerMeasure import AngerMeasure
 class chatMachine(Machine):
 	reboot_kws=['/start','重來','重置','重啟','重新啟動']
-	task_dic={'gallary':['給我貼圖','我要貼圖','給我圖','我要圖'],'map':['肚子餓','好餓']}
+	task_dic={'help':['/help','有什麼功能','可以做什麼'],'gallary':['給我貼圖','我要貼圖','給我圖','我要圖'],'map':['肚子餓','好餓']}
 
 	quit_echo_kws=['放過我','不玩','不想玩','無聊','不跟你','不想']
 	insult_kws=['87','賤貨','賤人','王八蛋','不要臉','髒東西','敗類','智障','白癡','白痴','神經病','廢物','混蛋','笨蛋']
@@ -20,10 +21,11 @@ class chatMachine(Machine):
 	comfort_kws=['拍拍啦','不意外啊','呃...','沒關係啦\n大家早就知道了']
 
 	agree_kws=['好','嗯','摁','可以','可','當然','拜託']
-	disagree_kws=['不','不可以','不行','不准','不要','算了','不用']
+	disagree_kws=['不可以','不行','不准','不要','算了','不用']
 
 	def __init__(self,bot):
 		self.bot = bot
+		self.anger_bot = AngerMeasure()
 		self.echo_count=0
 		self.reply=None
 
@@ -37,6 +39,8 @@ class chatMachine(Machine):
 		self.states=[
 			{'name':'dummy'},
 			{'name':'annoyed','on_enter':'Complaining'},
+
+			{'name':'help','on_enter':'showCommand'},
 
 			{'name':'base','on_enter':'settingUp'},
 			{'name':'echo','on_enter':'Echoing'},
@@ -68,11 +72,13 @@ class chatMachine(Machine):
 			{'trigger':'Advance','source':'echo','dest':'=','after':'EchoCount','unless':['quitEcho']},
 			{'trigger':'Advance','source':'echo','dest':'echo_q','conditions':'quitEcho'},
 
+			{'trigger':'Advance','source':'base','dest':'help','conditions':'askHelp'},
+
 			{'trigger':'Advance','source':'base','dest':'gallary','conditions':'askPic'},
 			{'trigger':'Jump','source':'gallary','dest':'gallary_ask'},
+			{'trigger':'Advance','source':'gallary_ask','dest':'gallary_q','conditions':'receiveNo'},
 			{'trigger':'Advance','source':'gallary_ask','dest':'gallary','conditions':'receiveOk'},
 			{'trigger':'Advance','source':'gallary_ask','dest':'=','conditions':'Digress'},
-			{'trigger':'Advance','source':'gallary_ask','dest':'gallary_q','conditions':'receiveNo'},
 
 			{'trigger':'Advance','source':'base','dest':'map','conditions':'Starving'},
 			{'trigger':'Advance','source':'map','dest':'map_list','conditions':'receiveGPS'},
@@ -85,9 +91,9 @@ class chatMachine(Machine):
 			{'trigger':'Advance','source':'map_ask','dest':'=','conditions':'Digress'},
 
 			{'trigger':'Advance','source':'base','dest':'file','unless':'isTextSticker'},
+			{'trigger':'Advance','source':'file','dest':'file_n_q','conditions':'receiveNo'},
 			{'trigger':'Advance','source':'file','dest':'=','conditions':'Digress'},	#digress=離題
-			{'trigger':'Advance','source':'file','dest':'file_q','conditions':'receiveOk'},
-			{'trigger':'Advance','source':'file','dest':'file_n_q','conditions':'receiveNo'}
+			{'trigger':'Advance','source':'file','dest':'file_q','conditions':'receiveOk'}
 		]
 		Machine.__init__(self,states=self.states,transitions=self.transitions,initial='dummy',send_event=True,show_conditions=True)
 		#Machine.__init__(self,states=self.states,transitions=self.transitions,initial='dummy',send_event=True)
@@ -104,6 +110,7 @@ class chatMachine(Machine):
 			text=event.kwargs['update'].message.text
 			for kw in self.reboot_kws:
 				if kw in text:
+					print('reboot!!')
 					self.echo_count=0
 					self.reply=None
 					self.resetAnnoyRate()
@@ -129,8 +136,38 @@ class chatMachine(Machine):
 		update.message.reply_text('=======')
 
 		reply='哈囉你好:D\n你腦袋(消音)有事嗎？？'
-		self.resetAnnoyRate()
+		self.anger_bot.afterFlareUp()
 		self.Success(update=update,reply=reply)
+
+
+	"""
+	callback functions which are relavant to state help
+	"""
+	def askHelp(self,event):
+		text=event.kwargs['update'].message.text or ''
+		for kw in self.task_dic['help']:
+			if kw in text:
+				return True
+		return False
+	def showCommand(self,event):
+		update = event.kwargs['update']
+		s = """
+		1.說出含有"給我貼圖"、"我要貼圖"、"給我圖"、"我要圖"的話，我會送你一張圖，以我提供的為主，你不能要求我要給啥
+		==
+		2.說出含有"肚子餓"、"好餓"的話，我可以幫你找附近有什麼吃的
+		==
+		3.說出含有"/help"、"有什麼功能"、"可以做什麼"，的話，我就會說這句話
+		==
+		4.如果你傳檔案、圖片之類不是文字、貼圖的東西給我，那我就會下載下來哦
+		==
+		5.如果你說了不含以上關鍵字的話，那我就只會學你說話XD
+		==
+		"""
+		reply = "我說完囉，有事在叫我吧！"
+		update.message.reply_text('你不知道可以做甚麼哦...我來告訴你一下：')
+		update.message.reply_text(s)
+		self.Success(update=update,reply=reply)
+
 
 	"""
 	callback functions which are relavant to state echo
@@ -191,6 +228,7 @@ class chatMachine(Machine):
 		self.echo_count=0
 		self.Success(update=update,reply=reply)
 
+
 	"""
 	callback functions which are relavant to state gallary
 	"""
@@ -227,7 +265,7 @@ class chatMachine(Machine):
 				self.Success(update=update,reply=reply)
 	def askMorePic(self,event):
 		update = event.kwargs['update']
-		if self.noPatience():
+		if self.flareUp():
 			self.Annoyed(update=update)
 		else:
 			update.message.reply_text('還想要嗎？？')
@@ -235,6 +273,7 @@ class chatMachine(Machine):
 		update = event.kwargs['update']
 		reply =  event.kwargs.get('reply','還想要的話再跟我說哦^^')
 		self.Success(update=update,reply=reply)
+
 
 	"""
 	callback functions which are relavant to state map
@@ -265,7 +304,7 @@ class chatMachine(Machine):
 		self.Jump(update=update)
 	def askMoreFood(self,event):
 		update = event.kwargs['update']
-		if self.noPatience():
+		if self.flareUp():
 			self.Annoyed(update=update)
 		else:
 			update.message.reply_text('還要列更多間餐廳嗎？')
@@ -285,46 +324,16 @@ class chatMachine(Machine):
 			reply = '好哦，那我先撤退惹'
 			self.Success(update=update,reply=reply)
 
+
 	"""
 	callback functions which are relavant to state file
 	"""
 	def askDownload(self,event):
 		update=event.kwargs['update']
-		if self.noPatience():
+		if self.flareUp():
 			self.Annoyed(update=update)
 		else:
 			event.kwargs['update'].message.reply_text('剛剛那是什麼東西？！我可以下載嗎？')
-	def receiveOk(self,event):
-		type=self.getMessageType(event)
-		if type=='text':
-			text=event.kwargs['update'].message.text
-			for kw in self.agree_kws:
-				if kw in text and not self.receiveNo(event):
-					self.gotSatisfied()
-					return True
-			return False
-		else:
-			return False
-	def receiveNo(self,event):
-		type=self.getMessageType(event)
-		if type=='text':
-			text=event.kwargs['update'].message.text
-			for kw in self.disagree_kws:
-				if kw in text:
-					self.gotSatisfied()
-					return True
-			return False
-		else:
-			return False
-	def Digress(self,event):
-		update=event.kwargs['update']
-		if not self.receiveOk(event) and not self.receiveNo(event) and not self.Reboot(event):
-			self.gotAnnoyed()
-			if not self.noPatience():
-				event.kwargs['update'].message.reply_text('認真聽我說話好不好...別岔開話題！\n先回答我剛剛的問題：')
-			return True
-		else:
-			return False
 	def	Success_file(self,event):
 		event.kwargs['update'].message.reply_text('那我就下載囉~')
 		update = self.update
@@ -366,6 +375,42 @@ class chatMachine(Machine):
 		reply='那你幹嘛傳給我...'
 		self.Success(update=update,reply=reply)
 
+
+	"""
+	conditions callbacks: Ok,No,Digress
+	"""
+	def receiveOk(self,event):
+		type=self.getMessageType(event)
+		if type=='text':
+			text=event.kwargs['update'].message.text
+			for kw in self.agree_kws:
+				if kw in text and not self.receiveNo(event):
+					self.gotSatisfied()
+					return True
+			return False
+		else:
+			return False
+	def receiveNo(self,event):
+		type=self.getMessageType(event)
+		if type=='text':
+			text=event.kwargs['update'].message.text
+			for kw in self.disagree_kws:
+				if kw in text:
+					self.gotSatisfied()
+					return True
+			return False
+		else:
+			return False
+	def Digress(self,event):
+		update=event.kwargs['update']
+		if not self.receiveOk(event) and not self.receiveNo(event) and not self.Reboot(event):
+			self.gotAnnoyed()
+			if not self.flareUp():
+				event.kwargs['update'].message.reply_text('認真聽我說話好不好...別岔開話題！\n先回答我剛剛的問題：')
+			return True
+		else:
+			return False
+
 	"""
 	Others
 	"""
@@ -385,12 +430,11 @@ class chatMachine(Machine):
 			if type in data['message']:
 				return type
 
-	def resetAnnoyRate(self):
-		self.anger_bound = randint(2,6)
-		self.anger_level = 0
+	def resetAnnoyRate(self,*args):
+		self.anger_bot.resetLevel()
 	def gotAnnoyed(self):
-		self.anger_level += 1
+		self.anger_bot.gotAnnoyed()
 	def gotSatisfied(self):
-		self.anger_level = self.anger_level-1 if self.anger_level>0 else 0
-	def noPatience(self):
-		return True if self.anger_level == self.anger_bound else False
+		self.anger_bot.gotSatisfied()
+	def flareUp(self):
+		return self.anger_bot.flareUp()
