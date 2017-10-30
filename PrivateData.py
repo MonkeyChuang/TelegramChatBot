@@ -1,5 +1,5 @@
 token_dic={
-	'telegram_bot':'<ChatBot API token>',
-	'google_places':'<GooglePlaces API key>',
-	'ngrok':'https://xxxxxxx.ngrok.io'
+	'telegram_bot':'xxxxx',
+	'google_places':'xxxxx',
+	'ngrok':'https://xxxxx.ngrok.io'
 }
