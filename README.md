@@ -7,8 +7,9 @@ No need to question the derivation of its name 'cause it came up without any rea
 - flask 0.12.2
 - [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) 6.0.0
 - [transitions](https://github.com/tyarkoni/transitions) 0.5.2
-- pygraphviz 1.3.1
+- pygraphviz 1.3.1 
 - numpy 1.11.3
+
 
 ### Key/Token
 在`PrivateData.py`中需要提供三筆資訊`telegram_bot`、`ngrok`、`google_places`：
@@ -35,6 +36,29 @@ pic     PrivateData.py		chatMachine.py  urlRequest.py    app.py
 ```python
 python app.py
 ```
+## Problem
+### Description
+Some problems may occurred while installing 
+pygraphviz. See example issue [here](https://github.com/pygraphviz/pygraphviz/issues/11). 
+
+### TroubleShooting(Mac/Ubuntu)
+The solution to the aforementioned issue was given in its [comment](https://github.com/pygraphviz/pygraphviz/issues/11#issuecomment-172354475), [this chinese blog](https://www.jianshu.com/p/a3da7ecc5303) or [pygraphviz's doc](http://pygraphviz.github.io/documentation/pygraphviz-1.3.1/install.html).
+大致上就是在說安裝pygraphviz前要先指定好`graphviz`的`include-path`和`library-path`:
+``` bash
+include-path=[path to graphviz include files]
+library-path=[path to graphviz library files]
+```
+以我的mac來說就是：
+```bash
+include-path=/usr/local/Cellar/graphviz/2.40.1/include/graphviz
+library-path=/usr/local/Cellar/graphviz/2.40.1/lib/graphviz
+```
+所以安裝方法就是在終端打上：
+```bash
+pip install --install-option="--include-path=/usr/local/Cellar/graphviz/2.40.1/include/graphviz"  --install-option="--library-path=/usr/local/Cellar/graphviz/2.40.1/lib/graphviz" pygraphviz
+```
+
+
 ## <a name='interact'></a>Interaction with Chat Bot
 `LaplaceBot`大致提供了四種功能：`Echo`、`上傳圖片`、`搜尋周遭餐廳`、`下載檔案/圖片`。
 ### The Very Beginning
