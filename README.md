@@ -1,7 +1,7 @@
 # Telegram ChatBot using Python
 Its name is `LaplaceBot`.   
 No need to question the derivation of its name 'cause it came up without any reason.
-## Requirement
+## SetUp
  python 3.5.2
 ### 套件/模組
 - flask 0.12.2
@@ -32,6 +32,12 @@ token_dic={
 ls
 pic     PrivateData.py		chatMachine.py  urlRequest.py    app.py
 ```
+### Setup ngrok server
+use `ngrok` to setup a proxy of https server.
+```bash
+ngrok http 5000
+``` 
+Set the URL of `Forwarding` returned by preceding ngrok process as Webhook URL of your Telegram Bot.
 ### 執行
 ```python
 python app.py
